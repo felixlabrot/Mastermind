@@ -1,31 +1,20 @@
 /*
 	WinBGI MasterMind
-	Philipp Doppelhofer, 2BHIF 2013
-	mastermind.exe
+	Philipp Doppelhofer, 2BHIF 2013 & 2015
 */
 
-#pragma once
-
-#include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 #include <time.h>
-#include <string.h>
 #include <windows.h>
 #include "graphics2.h"
 
-#define ESC 0x1b
-
-using namespace std;
-
 void main(bool test = false);
+bool TEST;
 
 const unsigned int CL = 4;
 const unsigned int MAX_VERSUCHE = 12;
 const unsigned int WIDTH = 500;
 const unsigned int HEIGHT = 750;
-
-bool TEST;
 
 enum farbe { rot, gruen, blau, hellblau, gelb, magenta, grau, weiss, schwarz };
 
@@ -48,7 +37,6 @@ void ConsolePrintColors(const farbe* const code) {
 			case gelb: printf("gelb"); break;
 			case magenta: printf("magenta"); break;
 			case weiss: printf("weiss"); break;
-			default: printf("unbekannt"); break;
 		}
 		printf("\n");
 	}
@@ -152,6 +140,7 @@ farbe MouseInputHandler() {
 			if(mX <= (WIDTH/6) * 5) { return gelb; }
 			if(mX <= (WIDTH/6) * 6) { return magenta; }
 		}
+
 		goto LOOP;
 }
 
@@ -243,7 +232,7 @@ void ende(const bool gewonnen) {
 		if(tolower(wh) == 'n') { exit(0); } else { goto abfrage; }
 }
 
-void main(bool test) {
+void main(const bool test) {
 	TEST = test;
 
 	srand((unsigned int)time(NULL));
@@ -266,11 +255,13 @@ void main(bool test) {
 
 	const char* keys[6] = {"a", "s", "d", "f", "g", "h"};
 	setcolor(DARKGRAY);
+
 	for (int i = 0; i < 6; i++) {
 		settextstyle(DEFAULT_FONT, HORIZ_DIR, 4);
 		setbkcolor(FtoC((farbe)i));
 		outtextxy(25+i*83, HEIGHT - 48, keys[i]);
 	}
+
 	setcolor(WHITE);
 	setbkcolor(BLACK);
 	
