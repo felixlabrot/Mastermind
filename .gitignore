@@ -1,0 +1,9 @@
+/Debug/
+/Release/
+MasterMind.sdf
+/MasterMind/Debug/
+/MasterMind/Release/
+*.user
+*.suo
+*.opensdf
+*.vcxproj.filters
