@@ -12,7 +12,7 @@
 #include <time.h>
 #include <string.h>
 #include <windows.h>
-#include "winbgi/graphics2.h"
+#include "graphics2.h"
 
 #define ESC 0x1b
 
