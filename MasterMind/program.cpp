@@ -131,71 +131,106 @@ inline void zeichneHinweis(const int versuch,const farbe* const outputCode) {
 	setfillstyle(SOLID_FILL,WHITE);
 }
 
+HANDLE events[2];
+
 DWORD WINAPI MouseInputHandler(void*) {
 	unsigned int x1 = 0;
 	unsigned int y1 = 700;
 	unsigned int x2 = x1 + (WIDTH/6);
 	unsigned int y2 = y1 + 50;
 
-	int mX, mY;
+	int mX, mY, retVal;
 
-	LOOP:
+	while (true) {
 		while (!mousedown());
 
 		mX = mouseclickx();
 		mY = mouseclicky();
 
-		if( (mY >= HEIGHT-50) && (mY <= HEIGHT) ) {
-			if(mX <= (WIDTH/6) * 1) { return rot; }
-			if(mX <= (WIDTH/6) * 2) { return gruen; }
-			if(mX <= (WIDTH/6) * 3) { return blau; }
-			if(mX <= (WIDTH/6) * 4) { return hellblau; }
-			if(mX <= (WIDTH/6) * 5) { return gelb; }
-			if(mX <= (WIDTH/6) * 6) { return magenta; }
+		if ((mY >= HEIGHT - 50) && (mY <= HEIGHT)) {
+			if (mX <= (WIDTH / 6) * 1) { retVal = rot; break; }
+			if (mX <= (WIDTH / 6) * 2) { retVal = gruen; break; }
+			if (mX <= (WIDTH / 6) * 3) { retVal = blau; break; }
+			if (mX <= (WIDTH / 6) * 4) { retVal = hellblau; break;  }
+			if (mX <= (WIDTH / 6) * 5) { retVal = gelb; break; }
+			if (mX <= (WIDTH / 6) * 6) { retVal = magenta; break; }
 		}
+	}
 
-		goto LOOP;
+	SetEvent(events[1]);
+
+	return retVal;
 }
 
 DWORD WINAPI KeyboardInputHandler(void*) {
-	renew:
+	farbe retVal;
+	bool cont;
+	
+	do {
 		unsigned char input = getch();
 
+		cont = false;
+
 		switch (input) {
-			case 'a': return rot;
-			case 's': return gruen;
-			case 'd': return blau;
-			case 'f': return hellblau;
-			case 'g': return gelb;
-			case 'h': return magenta;
-			default: goto renew;
+			case 'a': retVal = rot; break;
+			case 's': retVal = gruen; break;
+			case 'd': retVal = blau; break;
+			case 'f': retVal = hellblau; break;
+			case 'g': retVal = gelb; break;
+			case 'h': retVal = magenta; break;
+			default: cont = true; break;
 		}
+	} while (cont);
+
+	SetEvent(events[0]);
+
+	return retVal;
 }
 
 const farbe InputHandler() {
 	HANDLE th[2];
+
+	events[0] = CreateEvent(NULL, FALSE, FALSE, NULL);
+	events[1] = CreateEvent(NULL, FALSE, FALSE, NULL);
+
 	th[0] = CreateThread(NULL, 0, KeyboardInputHandler, NULL, NULL, NULL);
 	th[1] = CreateThread(NULL, 0, MouseInputHandler, NULL, NULL, NULL);
 
 	DWORD retVal;
+	bool cont;
 
-	DWORD th_run = WaitForMultipleObjects(2, th, FALSE, 0);
+	do {
+		cont = true;
 
-	while(true) {
-		if (th_run == WAIT_OBJECT_0) {
-			TerminateThread(th[1], NULL);
-			GetExitCodeThread(th[0], &retVal);
-			if (TEST) printf("KB END/MOUSE KILLED");
-			break;
+		DWORD th_run = WaitForMultipleObjects(2, events, FALSE, 0);
+
+		switch (th_run) {
+			case WAIT_OBJECT_0 + 0:
+				if (TEST) printf("Keyboard signaled\n");
+				TerminateThread(th[1], NULL);
+				GetExitCodeThread(th[0], &retVal);
+				cont = false;
+				break;
+
+			case WAIT_OBJECT_0 + 1:
+				if (TEST) printf("Mouse signaled\n");
+				TerminateThread(th[0], NULL);
+				GetExitCodeThread(th[1], &retVal);
+				cont = false;
+				break;
+
+			case WAIT_TIMEOUT:
+				if (TEST) printf("Timeout\n");
+				break;
+
+			default:
+				if (TEST) printf("Error: %d\n", GetLastError());
+				break;
 		}
+	} while (cont);
 
-		if (th_run == WAIT_OBJECT_0 + 1) {
-			TerminateThread(th[0], NULL);
-			GetExitCodeThread(th[1], &retVal);
-			if (TEST) printf("MOUSE END/KB KILLED");
-			break;
-		}
-	}
+	CloseHandle(events[0]);
+	CloseHandle(events[1]);
     
 	return (farbe)retVal;
 }
