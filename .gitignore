@@ -1,8 +1,10 @@
 /Debug/
 /Release/
+/x64/
 MasterMind.sdf
 /MasterMind/Debug/
 /MasterMind/Release/
+/MasterMind/x64/
 *.user
 *.suo
 *.opensdf

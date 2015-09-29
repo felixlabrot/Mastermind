@@ -8,15 +8,16 @@
 #include <windows.h>
 #include "graphics2.h"
 
-void main(bool test = false);
-bool TEST;
+#define TEST true
+
+void main();
 
 const unsigned int CL = 4;
 const unsigned int MAX_VERSUCHE = 12;
 const unsigned int WIDTH = 500;
 const unsigned int HEIGHT = 750;
 
-enum farbe { rot, gruen, blau, hellblau, gelb, magenta, grau, weiss, schwarz };
+const enum farbe { rot, gruen, blau, hellblau, gelb, magenta, grau, weiss, schwarz };
 
 COORD spielfeldCoords[CL][MAX_VERSUCHE];
 COORD hinweiseCoords[CL][MAX_VERSUCHE];
@@ -25,7 +26,7 @@ inline int zufallsbereich(const int min,const int max) { return (rand() % max + 
 
 template <typename T> inline void resetArray(T* const _array,const unsigned int length,const T _value) { for (unsigned int i = 0; i < length; i++) { _array[i] = _value; } }
 
-void ConsolePrintColors(const farbe* const code) {
+inline void ConsolePrintColors(const farbe* const code) {
 	for (int i = 0; i < CL; i++) {
 		switch (code[i]) {
 			case schwarz: printf("schwarz"); break;
@@ -44,7 +45,7 @@ void ConsolePrintColors(const farbe* const code) {
 	printf("----------\n");
 }
 
-void createCode(int* const vektor,const int n) {
+inline void createCode(int* const vektor,const int n) {
 	for(int i = 0;i < n;i++) {
 		vektor[i] = zufallsbereich(0,5);
 		settextstyle(DEFAULT_FONT,HORIZ_DIR,2);
@@ -53,17 +54,29 @@ void createCode(int* const vektor,const int n) {
 	}
 }
 
-colors FtoC(farbe f) {
-	if(f == schwarz) { return BLACK; }
-	if(f == grau) { return LIGHTGRAY; }
-	if(f == rot) { return RED; }
-	if(f == gruen) { return GREEN; }
-	if(f == blau) { return BLUE; }
-	if(f == hellblau) { return LIGHTBLUE; }
-	if(f == gelb) { return YELLOW; }
-	if(f == magenta) { return MAGENT; }
-	if(f == weiss) { return WHITE; }
-	return BLACK;
+inline const colors FtoC(farbe f) {
+	switch (f) {
+		case schwarz:
+			return BLACK;
+		case grau:
+			return LIGHTGRAY;
+		case rot:
+			return RED;
+		case gruen:
+			return GREEN;
+		case blau:
+			return BLUE;
+		case hellblau:
+			return LIGHTBLUE;
+		case gelb:
+			return YELLOW;
+		case magenta:
+			return MAGENT;
+		case weiss:
+			return WHITE;
+		default:
+			return BLACK;
+	}
 }
 
 void zeichneFarbauswahl() {
@@ -103,13 +116,13 @@ void zeichneFarbauswahl() {
 	setfillstyle(SOLID_FILL,WHITE);
 }
 
-void zeichneLeerenVersuch(const unsigned int versuch) {
+inline void zeichneLeerenVersuch(const unsigned int versuch) {
 	setfillstyle(SOLID_FILL,BLACK);
 	for (int i = 0; i < CL; i++) { fillellipse(spielfeldCoords[i][versuch].X,spielfeldCoords[i][versuch].Y,20,20); }
 	setfillstyle(SOLID_FILL,WHITE);
 }
 
-void zeichneHinweis(const int versuch,const farbe* const outputCode) {
+inline void zeichneHinweis(const int versuch,const farbe* const outputCode) {
 	for (int i = 0; i < CL; i++) {
 		setfillstyle(SOLID_FILL,FtoC(outputCode[i]));
 		fillellipse(hinweiseCoords[i][versuch].X,hinweiseCoords[i][versuch].Y,10,10);
@@ -118,7 +131,7 @@ void zeichneHinweis(const int versuch,const farbe* const outputCode) {
 	setfillstyle(SOLID_FILL,WHITE);
 }
 
-farbe MouseInputHandler() {
+DWORD WINAPI MouseInputHandler(void*) {
 	unsigned int x1 = 0;
 	unsigned int y1 = 700;
 	unsigned int x2 = x1 + (WIDTH/6);
@@ -144,7 +157,7 @@ farbe MouseInputHandler() {
 		goto LOOP;
 }
 
-farbe KeyboardInputHandler() {
+DWORD WINAPI KeyboardInputHandler(void*) {
 	renew:
 		unsigned char input = getch();
 
@@ -159,11 +172,35 @@ farbe KeyboardInputHandler() {
 		}
 }
 
-farbe InputHandler() {
-	return MouseInputHandler();
+const farbe InputHandler() {
+	HANDLE th[2];
+	th[0] = CreateThread(NULL, 0, KeyboardInputHandler, NULL, NULL, NULL);
+	th[1] = CreateThread(NULL, 0, MouseInputHandler, NULL, NULL, NULL);
+
+	DWORD retVal;
+
+	DWORD th_run = WaitForMultipleObjects(2, th, FALSE, 0);
+
+	while(true) {
+		if (th_run == WAIT_OBJECT_0) {
+			TerminateThread(th[1], NULL);
+			GetExitCodeThread(th[0], &retVal);
+			if (TEST) printf("KB END/MOUSE KILLED");
+			break;
+		}
+
+		if (th_run == WAIT_OBJECT_0 + 1) {
+			TerminateThread(th[0], NULL);
+			GetExitCodeThread(th[1], &retVal);
+			if (TEST) printf("MOUSE END/KB KILLED");
+			break;
+		}
+	}
+    
+	return (farbe)retVal;
 }
 
-inline bool pruefeGewonnen(const farbe* const code) {
+inline const bool pruefeGewonnen(const farbe* const code) {
 	for (int i = 0; i < CL; i++) { if(code[i] != gruen) { return false; } }
 	return true;
 }
@@ -203,7 +240,7 @@ void initCoordFields() {
 	}
 }
 
-void pruefeVersuch(const farbe* const temp,const farbe* const code,farbe* const outputCode) {
+inline void pruefeVersuch(const farbe* const temp,const farbe* const code,farbe* const outputCode) {
 	resetArray(outputCode,CL,schwarz);
 	
 	for (int a = 0; a < CL; a++) {
@@ -226,14 +263,14 @@ void ende(const bool gewonnen) {
 		int wh = getch();
 		if(tolower(wh) == 'j') {
 			closegraph();
-			main(TEST);
+			main();
 			exit(0);
 		}
 		if(tolower(wh) == 'n') { exit(0); } else { goto abfrage; }
 }
 
-void main(const bool test) {
-	TEST = test;
+void main() {
+	if(!TEST) ShowWindow(GetConsoleWindow(), SW_HIDE);
 
 	srand((unsigned int)time(NULL));
 
