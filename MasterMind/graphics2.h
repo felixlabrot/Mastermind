@@ -1,8 +1,3 @@
-//
-// graphics.h  -- One of the files required to run BGI graphics programs
-//
-// You don't need to edit this file, or print it out.
-
 #ifndef __GRAPHICS2_H__
 #define __GRAPHICS2_H__
 
@@ -242,7 +237,7 @@ void graphdefaults PROTO((void));
 char* grapherrormsg PROTO((int));
 int graphresult PROTO((void));
 unsigned int imagesize PROTO((int, int, int, int));
-void initgraph PROTO((int *, int *, char const *,int , int));
+void initgraph PROTO((int *, int *, char const *,int , int, const char* const));
 int installuserdriver PROTO((char const *, int *));
 int installuserfont PROTO((char const *));
 void line PROTO((int, int, int, int));

@@ -1,8 +1,3 @@
-//
-// winbgi.cpp  -- One of the files required to run BGI graphics programs
-//
-// You don't need to edit this file, or print it out.
-
 #include <windows.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -47,7 +42,6 @@ static int screen_height;
 static int window_width;
 static int window_height;
 
-//Mouse info    (Added 1-Oct-2000, Matthew Weathers)
 static bool bMouseUp = false;
 static bool bMouseDown = false;
 static int iCurrentMouseX = 0;
@@ -1108,14 +1102,14 @@ void sector(int x, int y, int start_angle, int end_angle,
 void bar(int left, int top, int right, int bottom)
 {
     RECT r;
-    if (left > right) {	/* Turbo C corrects for badly ordered corners */   
+    if (left > right) {
 	r.left = right;
 	r.right = left;
     } else {
 	r.left = left;
 	r.right = right;
     }
-    if (bottom < top) {	/* Turbo C corrects for badly ordered corners */   
+    if (bottom < top) { 
 	r.top = bottom;
 	r.bottom = top;
     } else {
@@ -1136,7 +1130,7 @@ void bar3d(int left, int top, int right, int bottom, int depth, int topflag)
 {
     int temp;
     const double tan30 = 1.0/1.73205080756887729352;
-    if (left > right) {     /* Turbo C corrects for badly ordered corners */
+    if (left > right) {
 	temp = left;
 	left = right;
 	right = temp;
@@ -1296,7 +1290,6 @@ void delay(unsigned msec)
     while (!timeout_expired) handle_input(true);
 }
     
-// The Mouse functions    (1-Oct-2000, Matthew Weathers)
 bool mouseup() {
     while (handle_input(false));
 	if (bMouseUp) {
@@ -1620,7 +1613,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT messg,
 	kbd_queue.put((TCHAR) wParam);
 	break;
 
-		// Handle some mouse events, too (1-Oct-2000, Matthew Weathers, Erik Habbestad)
 	  case WM_LBUTTONDOWN:
 		  iClickedMouseX = LOWORD(lParam);
 		  iClickedMouseY = HIWORD(lParam);
@@ -1834,7 +1826,7 @@ static void set_defaults()
 }
 
 void initgraph(int* device, int* mode, char const* /*pathtodriver*/, 
-			   int size_width, int size_height)
+			   int size_width, int size_height, const char* const window_title)
 {
     int index;
     static WNDCLASS wcApp;
@@ -1914,7 +1906,7 @@ void initgraph(int* device, int* mode, char const* /*pathtodriver*/,
 	if (size_width) window_width=size_width;
 	if (size_height) window_height=size_height;
 
-    hWnd = CreateWindow("BGIlibrary", "Windows BGI", 
+    hWnd = CreateWindow("BGIlibrary", window_title, 
 			WS_OVERLAPPEDWINDOW,
 		        0, 0, window_width+BORDER_WIDTH, 
 			window_height+BORDER_HEIGHT,

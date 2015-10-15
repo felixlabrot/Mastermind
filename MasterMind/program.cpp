@@ -6,9 +6,11 @@
 #include <stdio.h>
 #include <time.h>
 #include <windows.h>
+#include <iostream>
 #include "graphics2.h"
 
-#define TEST true
+#define TEST false
+#define WIN32_LEAN_AND_MEAN 
 
 void main();
 
@@ -22,9 +24,52 @@ const enum farbe { rot, gruen, blau, hellblau, gelb, magenta, grau, weiss, schwa
 COORD spielfeldCoords[CL][MAX_VERSUCHE];
 COORD hinweiseCoords[CL][MAX_VERSUCHE];
 
+bool ENABLE_MOUSE = false;
+
+struct CALLBACKDATA {
+	std::size_t cnt;
+	DWORD pid;
+};
+
+BOOL CALLBACK EnumWindowsCallback(HWND hwnd, LPARAM lParam) {
+	CALLBACKDATA *pdata = reinterpret_cast<CALLBACKDATA*>(lParam);
+	DWORD process_id = 0;
+
+	GetWindowThreadProcessId(hwnd, &process_id);
+	if (pdata->pid == process_id && !GetWindow(hwnd, GW_OWNER))
+		(pdata->cnt)++;
+
+	return TRUE;
+}
+
+std::size_t count_own_windows() {
+	CALLBACKDATA data = { 0 };
+	HWND hwndCon = GetConsoleWindow();
+	if (hwndCon && GetWindowThreadProcessId(hwndCon, &data.pid))
+		EnumWindows(EnumWindowsCallback, reinterpret_cast<LPARAM>(&data));
+
+	return data.cnt;
+}
+
 inline int zufallsbereich(const int min,const int max) { return (rand() % max + min); }
 
 template <typename T> inline void resetArray(T* const _array,const unsigned int length,const T _value) { for (unsigned int i = 0; i < length; i++) { _array[i] = _value; } }
+
+int mygetch() {
+	INPUT_RECORD irec = { 0 };
+	DWORD cnt{ 0 };
+	HWND hwndCon{ GetConsoleWindow() };
+	HANDLE hIn{ GetStdHandle(STD_INPUT_HANDLE) };
+
+	if (!hwndCon || hIn == INVALID_HANDLE_VALUE)
+		return -1;
+	do {
+		if (ReadConsoleInputA(hIn, &irec, 1, &cnt) && irec.EventType == KEY_EVENT && !irec.Event.KeyEvent.bKeyDown)
+			return static_cast<unsigned char>(irec.Event.KeyEvent.uChar.AsciiChar);
+	} while (cnt);
+
+	return -1;
+}
 
 inline void ConsolePrintColors(const farbe* const code) {
 	for (int i = 0; i < CL; i++) {
@@ -131,15 +176,13 @@ inline void zeichneHinweis(const int versuch,const farbe* const outputCode) {
 	setfillstyle(SOLID_FILL,WHITE);
 }
 
-HANDLE events[2];
-
-DWORD WINAPI MouseInputHandler(void*) {
+farbe MouseInputHandler() {
 	unsigned int x1 = 0;
 	unsigned int y1 = 700;
 	unsigned int x2 = x1 + (WIDTH/6);
 	unsigned int y2 = y1 + 50;
 
-	int mX, mY, retVal;
+	int mX, mY;
 
 	while (true) {
 		while (!mousedown());
@@ -148,22 +191,17 @@ DWORD WINAPI MouseInputHandler(void*) {
 		mY = mouseclicky();
 
 		if ((mY >= HEIGHT - 50) && (mY <= HEIGHT)) {
-			if (mX <= (WIDTH / 6) * 1) { retVal = rot; break; }
-			if (mX <= (WIDTH / 6) * 2) { retVal = gruen; break; }
-			if (mX <= (WIDTH / 6) * 3) { retVal = blau; break; }
-			if (mX <= (WIDTH / 6) * 4) { retVal = hellblau; break;  }
-			if (mX <= (WIDTH / 6) * 5) { retVal = gelb; break; }
-			if (mX <= (WIDTH / 6) * 6) { retVal = magenta; break; }
+			if (mX <= (WIDTH / 6) * 1) { return rot; }
+			if (mX <= (WIDTH / 6) * 2) { return gruen; }
+			if (mX <= (WIDTH / 6) * 3) { return blau; }
+			if (mX <= (WIDTH / 6) * 4) { return hellblau;  }
+			if (mX <= (WIDTH / 6) * 5) { return gelb; }
+			if (mX <= (WIDTH / 6) * 6) { return magenta; }
 		}
 	}
-
-	SetEvent(events[1]);
-
-	return retVal;
 }
 
-DWORD WINAPI KeyboardInputHandler(void*) {
-	farbe retVal;
+farbe KeyboardInputHandler() {
 	bool cont;
 	
 	do {
@@ -172,67 +210,24 @@ DWORD WINAPI KeyboardInputHandler(void*) {
 		cont = false;
 
 		switch (input) {
-			case 'a': retVal = rot; break;
-			case 's': retVal = gruen; break;
-			case 'd': retVal = blau; break;
-			case 'f': retVal = hellblau; break;
-			case 'g': retVal = gelb; break;
-			case 'h': retVal = magenta; break;
+			case 'a': return rot;
+			case 's': return gruen;
+			case 'd': return blau;
+			case 'f': return hellblau;
+			case 'g': return gelb;
+			case 'h': return magenta;
 			default: cont = true; break;
 		}
 	} while (cont);
-
-	SetEvent(events[0]);
-
-	return retVal;
 }
 
 const farbe InputHandler() {
-	HANDLE th[2];
-
-	events[0] = CreateEvent(NULL, FALSE, FALSE, NULL);
-	events[1] = CreateEvent(NULL, FALSE, FALSE, NULL);
-
-	th[0] = CreateThread(NULL, 0, KeyboardInputHandler, NULL, NULL, NULL);
-	th[1] = CreateThread(NULL, 0, MouseInputHandler, NULL, NULL, NULL);
-
-	DWORD retVal;
-	bool cont;
-
-	do {
-		cont = true;
-
-		DWORD th_run = WaitForMultipleObjects(2, events, FALSE, 0);
-
-		switch (th_run) {
-			case WAIT_OBJECT_0 + 0:
-				if (TEST) printf("Keyboard signaled\n");
-				TerminateThread(th[1], NULL);
-				GetExitCodeThread(th[0], &retVal);
-				cont = false;
-				break;
-
-			case WAIT_OBJECT_0 + 1:
-				if (TEST) printf("Mouse signaled\n");
-				TerminateThread(th[0], NULL);
-				GetExitCodeThread(th[1], &retVal);
-				cont = false;
-				break;
-
-			case WAIT_TIMEOUT:
-				if (TEST) printf("Timeout\n");
-				break;
-
-			default:
-				if (TEST) printf("Error: %d\n", GetLastError());
-				break;
-		}
-	} while (cont);
-
-	CloseHandle(events[0]);
-	CloseHandle(events[1]);
-    
-	return (farbe)retVal;
+	if (ENABLE_MOUSE) {
+		return MouseInputHandler();
+	}
+	else {
+		return KeyboardInputHandler();
+	}
 }
 
 inline const bool pruefeGewonnen(const farbe* const code) {
@@ -305,13 +300,18 @@ void ende(const bool gewonnen) {
 }
 
 void main() {
-	if(!TEST) ShowWindow(GetConsoleWindow(), SW_HIDE);
-
 	srand((unsigned int)time(NULL));
+
+	printf("Dr\201cke die ENTER Taste um die Maus-Steuerung zu aktivieren.\nF\201r Tastatur-Steuerung dr\201cke eine beliebige andere Taste.\n");
+	if (mygetch() == 13) {
+		ENABLE_MOUSE = true;
+	}
+
+	if (!TEST) ShowWindow(GetConsoleWindow(), SW_HIDE);
 
 	int GraphDriver = 0;
 	int GraphMode = 0;
-	initgraph(&GraphDriver,&GraphMode,"",WIDTH,HEIGHT);
+	initgraph(&GraphDriver,&GraphMode,"",WIDTH,HEIGHT, "MasterMind");
 
 	settextstyle(DEFAULT_FONT,HORIZ_DIR,4);
 	outtextxy(80,25,"MasterMind");
@@ -325,13 +325,15 @@ void main() {
 	initCoordFields();
 	zeichneFarbauswahl();
 
-	const char* keys[6] = {"a", "s", "d", "f", "g", "h"};
-	setcolor(DARKGRAY);
+	if (!ENABLE_MOUSE) {
+		const char* keys[6] = { "a", "s", "d", "f", "g", "h" };
+		setcolor(DARKGRAY);
 
-	for (int i = 0; i < 6; i++) {
-		settextstyle(DEFAULT_FONT, HORIZ_DIR, 4);
-		setbkcolor(FtoC((farbe)i));
-		outtextxy(25+i*83, HEIGHT - 48, keys[i]);
+		for (int i = 0; i < 6; i++) {
+			settextstyle(DEFAULT_FONT, HORIZ_DIR, 4);
+			setbkcolor(FtoC((farbe)i));
+			outtextxy(25 + i * 83, HEIGHT - 48, keys[i]);
+		}
 	}
 
 	setcolor(WHITE);
@@ -340,6 +342,7 @@ void main() {
 	unsigned int aktVersuch = 0;
 	farbe outputCode[CL];
 
+	if (TEST) { printf("%s-Mode enabled!\n\n", (ENABLE_MOUSE) ? "Mouse" : "Keyboard"); }
 	if(TEST) { ConsolePrintColors(code); }
 
 	settextstyle(DEFAULT_FONT,HORIZ_DIR,2);
@@ -347,25 +350,24 @@ void main() {
 
 	//-------------------------------------------------------
 
-	LOOP:
+	while (count_own_windows() == 2) {
 		zeichneLeerenVersuch(aktVersuch);
 		farbe temp[CL];
-		
+
 		for (int i = 0; i < CL; i++) {
 			farbe tmp = InputHandler();
 			temp[i] = tmp;
-			setfillstyle(SOLID_FILL,FtoC(tmp));
-			fillellipse(spielfeldCoords[i][aktVersuch].X,spielfeldCoords[i][aktVersuch].Y,20,20);
-			setfillstyle(SOLID_FILL,WHITE);
+			setfillstyle(SOLID_FILL, FtoC(tmp));
+			fillellipse(spielfeldCoords[i][aktVersuch].X, spielfeldCoords[i][aktVersuch].Y, 20, 20);
+			setfillstyle(SOLID_FILL, WHITE);
 		}
-		
-		pruefeVersuch(temp,code,outputCode);
-		zeichneHinweis(aktVersuch,outputCode);
+
+		pruefeVersuch(temp, code, outputCode);
+		zeichneHinweis(aktVersuch, outputCode);
 
 		aktVersuch++;
 
-		if(pruefeGewonnen(outputCode)) { ende(true); }
-		if(aktVersuch == MAX_VERSUCHE) { ende(false); }
-
-		goto LOOP;
+		if (pruefeGewonnen(outputCode)) { ende(true); }
+		if (aktVersuch == MAX_VERSUCHE) { ende(false); }
+	}
 }
